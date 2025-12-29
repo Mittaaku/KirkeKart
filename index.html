@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="nb">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="color-scheme" content="light" />
+  <title>KirkeKart Norge</title>
+
+  <!-- Tailwind CSS (CDN) -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- Leaflet -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+  <!-- Fonts: Inter (sans), EB Garamond (serif) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,600;0,700;1,400;1,600&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+  <!-- Font Awesome (icons) -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6/css/all.min.css" />
+
+  <!-- PapaParse (CSV) -->
+  <script src="https://unpkg.com/papaparse@5.4.1/papaparse.min.js"></script>
+
+  <style>
+    #map { height: 70vh; }
+    body { overscroll-behavior: none; }
+    .sc { font-variant: small-caps; letter-spacing: .02em; }
+
+    :root {
+      --font-sans: 'Inter', ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, 'Apple Color Emoji', 'Segoe UI Emoji';
+      --font-serif: 'EB Garamond', ui-serif, Georgia, Cambria, 'Times New Roman', Times, serif;
+    }
+    .font-sans { font-family: var(--font-sans); }
+    .font-serif { font-family: var(--font-serif); }
+
+    .paper {
+      background-image:
+        radial-gradient(100% 100% at 50% 0%, rgba(255,255,255,0.9), rgba(245,242,235,0.9)),
+        linear-gradient(180deg, rgba(0,0,0,0.03), rgba(0,0,0,0) 40%),
+        repeating-linear-gradient(135deg, rgba(0,0,0,0.015) 0, rgba(0,0,0,0.015) 2px, rgba(0,0,0,0) 3px, rgba(0,0,0,0) 6px);
+      background-blend-mode: multiply, normal, normal;
+    }
+  </style>
+</head>
+<body class="font-sans bg-gray-50 text-gray-900 antialiased">
+  <a href="#map" class="sr-only focus:not-sr-only focus:absolute focus:m-2 focus:p-2 focus:bg-white focus:ring rounded">Hopp til kart</a>
+
+  <header class="px-6 py-10 text-center border-b border-gray-200 bg-gradient-to-b from-white to-gray-50">
+    <div class="max-w-4xl mx-auto space-y-8"><h1 class="font-serif sc text-3xl md:text-4xl font-bold tracking-tight text-gray-900">Kirkekart – Norge</h1>
+
+      <div class="font-serif w-full max-w-none mx-auto text-left">
+        <p class="text-base text-gray-700 mb-4 leading-relaxed">Et enkelt kart for å hjelpe deg å finne menigheter som driver menighet slik Bibelen sier det skal drives.</p>
+        <ol class="grid grid-cols-1 md:grid-cols-1 xl:grid-cols-2 gap-6 list-none p-0 m-0">
+          <li class="flex items-start gap-3 p-6 bg-white rounded-2xl ring-1 ring-gray-200/70 hover:ring-gray-300 shadow-sm hover:shadow transition">
+            
+            <div>
+              <div class="flex items-center gap-1.5"><i class="fa-solid fa-book-bible text-lg text-amber-600" aria-hidden="true"></i><strong class="font-semibold text-gray-900">Protestantisk</strong></div>
+              <p class="text-gray-600 text-sm mt-1">Bibelen er menighetens høyeste målestokk. Frelsen er en gave fra Gud, mottatt ved tro, ikke ved våre gjerninger; den er gitt gjennom Jesus alene, og målet er Guds ære alene.</p>
+              <div class="text-xs text-gray-500 italic mt-1">Rom 1,16–17 · Ef 2,8–9 · Joh 14,6 · 1 Kor 10,31</div>
+            </div>
+          </li>
+          <li class="flex items-start gap-3 p-6 bg-white rounded-2xl ring-1 ring-gray-200/70 hover:ring-gray-300 shadow-sm hover:shadow transition">
+            
+            <div>
+              <div class="flex items-center gap-1.5"><i class="fa-solid fa-user-group text-lg text-amber-600" aria-hidden="true"></i><strong class="font-semibold text-gray-900">Forpliktende medlemskap</strong></div>
+              <p class="text-gray-600 text-sm mt-1">Medlemskap innebærer konkret ansvar – medlemmer møter opp når menigheten samles, ikke bare sporadisk. Menigheten er ikke et tilbud man «dropper innom» når det passer, men en kropp man tilhører som et lem.</p>
+              <div class="text-xs text-gray-500 italic mt-1">Heb 10,24–25 · Apg 2,42</div>
+            </div>
+          </li>
+          <li class="flex items-start gap-3 p-6 bg-white rounded-2xl ring-1 ring-gray-200/70 hover:ring-gray-300 shadow-sm hover:shadow transition">
+            
+            <div>
+              <div class="flex items-center gap-1.5"><i class="fa-solid fa-sitemap text-lg text-amber-600" aria-hidden="true"></i><strong class="font-semibold text-gray-900">Bibelsk menighetsstruktur</strong></div>
+              <p class="text-gray-600 text-sm mt-1">Menigheten ledes av kvalifiserte menn (ikke kvinner) som oppfyller kvalifikasjonene i 1 Timoteus 3:1–13 og Titus 1:5–9.</p>
+              <div class="text-xs text-gray-500 italic mt-1">1 Tim 3,1–13 · Tit 1,5–9</div>
+            </div>
+          </li>
+          <li class="flex items-start gap-3 p-6 bg-white rounded-2xl ring-1 ring-gray-200/70 hover:ring-gray-300 shadow-sm hover:shadow transition">
+            
+            <div>
+              <div class="flex items-center gap-1.5"><i class="fa-solid fa-gavel text-lg text-amber-600" aria-hidden="true"></i><strong class="font-semibold text-gray-900">Kirketukt</strong></div>
+              <p class="text-gray-600 text-sm mt-1">Når et medlem lever i livstruende synd og nekter å omvende seg etter gjentatte advarsler, holder lederskapet vedkommende tilbake fra nattverden og kan i verste fall ekskommunisere dem, for å verne om fellesskapet.</p>
+              <div class="text-xs text-gray-500 italic mt-1">Matt 18,15–17 · 1 Kor 5</div>
+            </div>
+          </li>
+        </ol>
+      </div>
+    </div>
+  </header>
+
+  <main class="p-6 space-y-3">
+    <div id="map" role="region" aria-label="Kart over menigheter i Sør-Norge" class="relative rounded-xl ring-1 ring-gray-200 bg-white shadow-sm">
+      <div id="loading" class="absolute inset-0 grid place-items-center bg-white/60 hidden">
+        <div class="w-6 h-6 rounded-full border-2 border-gray-400 border-t-transparent animate-spin"></div>
+      </div>
+    </div>
+    <div id="notice" class="mt-3 text-sm hidden"></div>
+  </main>
+
+  <script>
+  (function () {
+    "use strict";
+
+    const CSV_URL = 'https://docs.google.com/spreadsheets/d/1iQMv5M8hrapIbvolhIKRHOcX3yx7CPX8zQogXzwhtec/export?format=csv';
+
+    const SOUTHERN_NORWAY_BOUNDS = L.latLngBounds([57.8, 3.5], [62.6, 13.6]);
+    const SOUTHERN_LOCK_BOUNDS   = L.latLngBounds([57.5, 2.0], [62.9, 14.5]);
+
+    let CHURCHES = [];
+    const markersLayer = L.layerGroup();
+
+    const $ = (id) => document.getElementById(id);
+
+    function escapeHtml(s) {
+      return String(s || '')
+        .replaceAll('&', '&amp;')
+        .replaceAll('<', '&lt;')
+        .replaceAll('>', '&gt;')
+        .replaceAll('"', '&quot;');
+    }
+
+    function normalizeWebsite(url) {
+      const raw = String(url || '').trim();
+      if (!raw) return '';
+      const prefixed = /^https?:\/\//i.test(raw) ? raw : 'https://' + raw;
+      try {
+        const u = new URL(prefixed);
+        if (u.protocol === 'http:' || u.protocol === 'https:') return u.toString();
+      } catch (_) {}
+      return '';
+    }
+
+    function popupHTML(c) {
+      const name = `<h3 class="font-serif font-semibold text-base mb-1">${escapeHtml(c.name)}</h3>`;
+      const addr = c.address ? `<div class="text-sm">${escapeHtml(c.address)}</div>` : '';
+      const maps = (Number.isFinite(c.lat) && Number.isFinite(c.lng))
+        ? `<a class="text-sm underline" href="https://www.google.com/maps/search/?api=1&query=${c.lat},${c.lng}" target="_blank" rel="noopener noreferrer">Åpne i kart</a>`
+        : '';
+      const siteUrl = normalizeWebsite(c.website);
+      const site = siteUrl ? `<a class="text-sm underline ml-2" href="${siteUrl}" target="_blank" rel="noopener noreferrer">Nettside</a>` : '';
+      return `<div class="space-y-1">${name}${addr}<div class="text-sm">${maps}${site}</div></div>`;
+    }
+
+    function setNotice(message, kind) {
+      const el = $("notice");
+      if (!el) return;
+      el.innerHTML = '';
+      if (!message) { el.classList.add('hidden'); return; }
+      el.className = 'mt-3 text-sm ' + (kind === 'error' ? 'text-red-700' : 'text-gray-700');
+      el.classList.remove('hidden');
+      el.append(message);
+    }
+
+    // ===== Map init =====
+    const map = L.map('map', {
+      maxBounds: SOUTHERN_LOCK_BOUNDS.pad(0.02),
+      maxBoundsViscosity: 1.0,
+      minZoom: 4,
+      worldCopyJump: false,
+      preferCanvas: true,
+      zoomControl: true
+    });
+
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 19,
+      detectRetina: true,
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> bidragsytere'
+    }).addTo(map);
+
+    L.control.scale({ metric: true, imperial: false }).addTo(map);
+    markersLayer.addTo(map);
+
+    // Initial frame
+    map.fitBounds(SOUTHERN_NORWAY_BOUNDS);
+
+    // ===== Render =====
+    function renderMarkers() {
+      markersLayer.clearLayers();
+      for (const c of CHURCHES) {
+        if (!Number.isFinite(c.lat) || !Number.isFinite(c.lng)) continue;
+        const marker = L.marker([c.lat, c.lng]).bindPopup(popupHTML(c), { autoPan: true, keepInView: true });
+        markersLayer.addLayer(marker);
+      }
+      const loadingEl = $("loading");
+      if (loadingEl) loadingEl.classList.add('hidden');
+      const count = CHURCHES.length;
+      const msg = document.createElement('span');
+      msg.textContent = count ? `Lastet ${count} menighet${count === 1 ? '' : 'er'}.` : 'Ingen menigheter registrert enda.';
+      setNotice(msg, count ? 'info' : 'error');
+    }
+
+    // ===== Load CSV with timeout =====
+    async function fetchCsvText(url, { timeoutMs = 12000 } = {}) {
+      const ctrl = new AbortController();
+      const t = setTimeout(() => ctrl.abort(), timeoutMs);
+      try {
+        const res = await fetch(url, { signal: ctrl.signal, cache: 'no-store' });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        return await res.text();
+      } finally {
+        clearTimeout(t);
+      }
+    }
+
+    function parseRows(csvText) {
+      const { data } = Papa.parse(csvText, { header: true, skipEmptyLines: true });
+      const items = data.map((r) => ({
+        name: (r.name || r.Navn || '').toString().trim(),
+        lat: Number(r.lat || r.latitude || r.Lat || r.Breddegrad),
+        lng: Number(r.lng || r.longitude || r.Lng || r.Lengdegrad),
+        address: (r.address || r.Adresse || '').toString().trim(),
+        website: (r.website || r.Nettside || '').toString().trim()
+      })).filter(c => c.name && Number.isFinite(c.lat) && Number.isFinite(c.lng));
+
+      const seen = new Set();
+      const deduped = [];
+      for (const it of items) {
+        const key = `${it.name}@@${it.lat.toFixed(6)},${it.lng.toFixed(6)}`;
+        if (seen.has(key)) continue;
+        seen.add(key);
+        deduped.push(it);
+      }
+      return deduped;
+    }
+
+    async function loadChurches() {
+      const loadingEl = $("loading");
+      if (loadingEl) loadingEl.classList.remove('hidden');
+      setNotice('', '');
+
+      try {
+        const csvText = await fetchCsvText(CSV_URL);
+        CHURCHES = parseRows(csvText);
+        renderMarkers();
+      } catch (err) {
+        console.error('CSV load/parse error:', err);
+        if (loadingEl) loadingEl.classList.add('hidden');
+        const frag = document.createDocumentFragment();
+        const span = document.createElement('span');
+        span.textContent = 'Kunne ikke hente menighetsdata. ';
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'ml-1 inline-flex items-center gap-1 px-2 py-1 rounded border bg-white hover:bg-gray-50';
+        btn.innerHTML = '<i class="fa-solid fa-rotate-right" aria-hidden="true"></i><span>Prøv igjen</span>';
+        btn.addEventListener('click', () => loadChurches(), { once: true });
+        frag.append(span, btn);
+        setNotice(frag, 'error');
+      }
+    }
+
+    // ===== Self-tests =====
+    (function selfTests() {
+      try {
+        console.assert(typeof L === 'object', 'Leaflet should be loaded');
+        console.assert(typeof Papa === 'object', 'PapaParse should be loaded');
+        console.assert(Array.isArray(CHURCHES), 'CHURCHES should be an array');
+        const _testPopup = popupHTML({ name: 'Test', lat: 60, lng: 10, address: 'Adresse', website: 'https://eksempel.no' });
+        console.assert(typeof _testPopup === 'string' && _testPopup.includes('Test'), 'popupHTML should return string with name');
+        CHURCHES = [];
+        renderMarkers();
+      } catch (e) {
+        console.warn('Self-tests failed (non-fatal):', e);
+      }
+    })();
+
+    // Kick off
+    loadChurches();
+  })();
+  </script>
+</body>
+</html>
