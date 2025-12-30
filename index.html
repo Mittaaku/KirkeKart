@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta name="color-scheme" content="light" />
-  <title>Kirkekart (Norge)</title>
+  <title>Kirkekart</title>
 
   <!-- Bootstrap 5 -->
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" />
@@ -12,7 +12,7 @@
 
   <!-- Leaflet -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" defer></script>
 
   <!-- Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -23,27 +23,46 @@
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6/css/all.min.css" />
 
   <!-- PapaParse -->
-  <script src="https://unpkg.com/papaparse@5.4.1/papaparse.min.js"></script>
+  <script src="https://unpkg.com/papaparse@5.4.1/papaparse.min.js" defer></script>
 
   <style>
-    #map { height: min(62vh, 680px); }
-    @media (max-width: 768px) { #map { height: 56vh; } }
+    :root{
+      --font-sans:'Inter',ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,'Apple Color Emoji','Segoe UI Emoji';
+      --font-serif:'EB Garamond',ui-serif,Georgia,Cambria,'Times New Roman',Times,serif;
 
-    body { overscroll-behavior: none; }
-    .sc { font-variant: small-caps; letter-spacing: .01em; }
+      --ink: #212529;
+      --muted: rgba(33,37,41,.72);
 
-    :root {
-      --font-sans: 'Inter', ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, 'Apple Color Emoji', 'Segoe UI Emoji';
-      --font-serif: 'EB Garamond', ui-serif, Georgia, Cambria, 'Times New Roman', Times, serif;
+      --card: #fff;
+      --card-border: rgba(0,0,0,.10);
+      --shadow: 0 .5rem 1.25rem rgba(0,0,0,.08);
+
+      --amber: #ffc107;
+      --amber-ink: #b45309;
       --amber-focus: rgba(255,193,7,.55);
+
+      --radius-lg: 16px;
+      --radius-md: 12px;
     }
 
-    /* Typography utility classes */
+    body { overscroll-behavior: none; font-family: var(--font-sans); color: var(--ink); }
     .font-sans { font-family: var(--font-sans); }
-    .font-serif { font-family: var(--font-serif); }
-    .h-serif { font-family: var(--font-serif); }
-    .lead-muted { color: rgba(33,37,41,.72); }
+    .font-serif, .h-serif { font-family: var(--font-serif); }
+    .sc { font-variant: small-caps; letter-spacing: .01em; }
+    .lead-muted { color: var(--muted); }
     .p-comfy { line-height: 1.62; }
+
+    /* Consistent rounded + shadows */
+    .cardish {
+      background: var(--card);
+      border: 1px solid var(--card-border);
+      border-radius: var(--radius-lg);
+      box-shadow: var(--shadow);
+    }
+
+    /* Map sizing */
+    #map { height: min(62vh, 680px); }
+    @media (max-width: 768px) { #map { height: 56vh; } }
 
     /* Focus visibility */
     :focus-visible {
@@ -61,19 +80,19 @@
     }
 
     .icon-badge {
-      width: 42px;
-      height: 42px;
+      width: 36px;
+      height: 36px;
       border-radius: 999px;
       display: grid;
       place-items: center;
       background: rgba(255, 193, 7, 0.12);
       border: 1px solid rgba(255, 193, 7, 0.25);
-      color: #b45309;
+      color: var(--amber-ink);
       flex: 0 0 auto;
       margin-top: 2px;
     }
 
-    /* Loading overlay: blur + text + glass */
+    /* Loading overlay */
     #map.loading-blur { filter: blur(2px) saturate(0.9); }
     #loading {
       backdrop-filter: blur(4px);
@@ -81,20 +100,20 @@
       background: rgba(255,255,255,.72);
     }
     .loading-card {
-      background: rgba(255,255,255,.9);
+      background: rgba(255,255,255,.92);
       border: 1px solid rgba(0,0,0,.08);
       box-shadow: 0 .5rem 1.25rem rgba(0,0,0,.10);
-      border-radius: 16px;
+      border-radius: var(--radius-lg);
       padding: 14px 16px;
     }
-    .loading-text { font-size: .98rem; color: rgba(33,37,41,.72); }
+    .loading-text { font-size: .98rem; color: var(--muted); }
 
     /* Reserve space so notice doesn’t jump layout */
-    #notice { min-height: 56px; }
+    #notice { min-height: 0; }
 
-    /* Leaflet controls: softer + coherent */
+    /* Leaflet controls: consistent */
     .leaflet-bar a {
-      border-radius: 12px !important;
+      border-radius: var(--radius-md) !important;
       box-shadow: 0 .25rem .75rem rgba(0,0,0,.10);
       border: 1px solid rgba(0,0,0,.10) !important;
     }
@@ -108,11 +127,22 @@
       border: 1px solid rgba(0,0,0,.10);
       box-shadow: 0 .25rem .75rem rgba(0,0,0,.08);
     }
+
+    /* Bootstrap accordion polish (consistent corners + no “double borders”) */
+    .accordion-item { border: 0; }
+    .accordion-button { background: #fff; }
+    .accordion-button:not(.collapsed) { background: rgba(255,193,7,.08); color: var(--ink); }
+    .accordion-button:focus { box-shadow: none; } /* we use :focus-visible outline */
+
+    /* Alerts match card corners */
+    .alert { border-radius: var(--radius-lg); }
   </style>
 </head>
 
-<body class="bg-light text-dark font-sans">
-  <a href="#map" class="visually-hidden-focusable position-absolute m-2 p-2 bg-white border rounded">Hopp til kart</a>
+<body class="bg-light text-dark">
+  <a href="#map" class="visually-hidden-focusable position-absolute m-2 p-2 bg-white border rounded">
+    Hopp til kart
+  </a>
 
   <header class="border-bottom bg-white">
     <div class="container-fluid py-4 py-md-5">
@@ -133,7 +163,7 @@
           <div id="map"
                role="region"
                aria-label="Kart over menigheter i Sør-Norge"
-               class="position-relative border rounded-4 bg-white shadow-sm overflow-hidden">
+               class="position-relative overflow-hidden cardish">
 
             <div id="loading"
                  class="position-absolute top-0 start-0 end-0 bottom-0 d-none align-items-center justify-content-center">
@@ -147,39 +177,42 @@
             </div>
           </div>
 
-          <div id="notice" class="mt-3 d-none"></div>
+          <div id="notice" class="mt-3"></div>
         </div>
 
-        <!-- Kriterier (expandable section) -->
-        <div class="accordion" id="criteriaSection">
-          <div class="accordion-item border-0 shadow-sm rounded-4 overflow-hidden mt-4">
+        <!-- Kriterier -->
+        <div class="accordion mt-4" id="criteriaSection">
+          <div class="accordion-item cardish overflow-hidden">
             <h2 class="accordion-header" id="criteriaSectionH">
               <button class="accordion-button collapsed h-serif" type="button"
                       data-bs-toggle="collapse" data-bs-target="#criteriaSectionBody"
                       aria-expanded="false" aria-controls="criteriaSectionBody">
-                <span class="me-2 icon-badge" aria-hidden="true" style="width:36px;height:36px;"><i class="fa-solid fa-list-check"></i></span>
+                <span class="me-2 icon-badge" aria-hidden="true"><i class="fa-solid fa-list-check"></i></span>
                 Kriterier
-                <span class="ms-auto small text-secondary">Hvilke menigheter som vises på kartet</span>
+                <span class="ms-auto small text-secondary">Kriteriene for menighetene på kartet</span>
               </button>
             </h2>
-            <div id="criteriaSectionBody" class="accordion-collapse collapse" aria-labelledby="criteriaSectionH" data-bs-parent="#criteriaSection">
+
+            <div id="criteriaSectionBody" class="accordion-collapse collapse"
+                 aria-labelledby="criteriaSectionH" data-bs-parent="#criteriaSection">
               <div class="accordion-body">
+
                 <div class="accordion" id="criteriaAccordion">
 
                   <!-- Protestantisk -->
-                  <div class="accordion-item border-0 shadow-sm rounded-4 overflow-hidden mb-3">
+                  <div class="accordion-item cardish overflow-hidden mb-3">
                     <h3 class="accordion-header" id="critOneH">
                       <button class="accordion-button collapsed h-serif" type="button"
                               data-bs-toggle="collapse" data-bs-target="#critOne"
                               aria-expanded="false" aria-controls="critOne">
-                        <span class="me-2 icon-badge" aria-hidden="true" style="width:36px;height:36px;"><i class="fa-solid fa-book-bible"></i></span>
+                        <span class="me-2 icon-badge" aria-hidden="true"><i class="fa-solid fa-book-bible"></i></span>
                         Protestantisk
                       </button>
                     </h3>
                     <div id="critOne" class="accordion-collapse collapse" aria-labelledby="critOneH" data-bs-parent="#criteriaAccordion">
                       <div class="accordion-body">
                         <p class="mb-3 text-secondary p-comfy">
-                          En protestantisk forankring gir menigheten et fast og felles utgangspunkt: Guds ord, ikke skiftende tradisjoner eller personlige preferanser. Når frelsen forstås som Guds frie gave i Kristus alene, mottatt ved tro alene, skapes det både trygghet for den enkelte og ydmykhet i fellesskapet, og hele menighetslivet rettes mot Guds ære fremfor menneskelig prestasjon.
+                          En protestantisk forankring gir menigheten et fast og felles utgangspunkt: Guds ord, ikke skiftende tradisjoner eller personlige preferanser. Når frelsen forstås som Guds frie gave i Kristus alene, skapes det både trygghet for den enkelte og ydmykhet i fellesskapet, og hele menighetslivet rettes mot Guds ære fremfor menneskelig prestasjon.
                         </p>
                         <div class="small text-secondary fst-italic">Rom 1,16–17 · Ef 2,8–9 · Joh 14,6 · 1 Kor 10,31</div>
                       </div>
@@ -187,12 +220,12 @@
                   </div>
 
                   <!-- Familiesentrert -->
-                  <div class="accordion-item border-0 shadow-sm rounded-4 overflow-hidden mb-3">
+                  <div class="accordion-item cardish overflow-hidden mb-3">
                     <h3 class="accordion-header" id="critFiveH">
                       <button class="accordion-button collapsed h-serif" type="button"
                               data-bs-toggle="collapse" data-bs-target="#critFive"
                               aria-expanded="false" aria-controls="critFive">
-                        <span class="me-2 icon-badge" aria-hidden="true" style="width:36px;height:36px;"><i class="fa-solid fa-house"></i></span>
+                        <span class="me-2 icon-badge" aria-hidden="true"><i class="fa-solid fa-house"></i></span>
                         Familiesentrert
                       </button>
                     </h3>
@@ -207,12 +240,12 @@
                   </div>
 
                   <!-- Forpliktende medlemskap -->
-                  <div class="accordion-item border-0 shadow-sm rounded-4 overflow-hidden mb-3">
+                  <div class="accordion-item cardish overflow-hidden mb-3">
                     <h3 class="accordion-header" id="critTwoH">
                       <button class="accordion-button collapsed h-serif" type="button"
                               data-bs-toggle="collapse" data-bs-target="#critTwo"
                               aria-expanded="false" aria-controls="critTwo">
-                        <span class="me-2 icon-badge" aria-hidden="true" style="width:36px;height:36px;"><i class="fa-solid fa-user-group"></i></span>
+                        <span class="me-2 icon-badge" aria-hidden="true"><i class="fa-solid fa-user-group"></i></span>
                         Forpliktende medlemskap
                       </button>
                     </h3>
@@ -227,12 +260,12 @@
                   </div>
 
                   <!-- Bibelsk menighetsstruktur -->
-                  <div class="accordion-item border-0 shadow-sm rounded-4 overflow-hidden mb-3">
+                  <div class="accordion-item cardish overflow-hidden mb-3">
                     <h3 class="accordion-header" id="critThreeH">
                       <button class="accordion-button collapsed h-serif" type="button"
                               data-bs-toggle="collapse" data-bs-target="#critThree"
                               aria-expanded="false" aria-controls="critThree">
-                        <span class="me-2 icon-badge" aria-hidden="true" style="width:36px;height:36px;"><i class="fa-solid fa-sitemap"></i></span>
+                        <span class="me-2 icon-badge" aria-hidden="true"><i class="fa-solid fa-sitemap"></i></span>
                         Bibelsk menighetsstruktur
                       </button>
                     </h3>
@@ -247,12 +280,12 @@
                   </div>
 
                   <!-- Kirkedisiplin -->
-                  <div class="accordion-item border-0 shadow-sm rounded-4 overflow-hidden mb-3">
+                  <div class="accordion-item cardish overflow-hidden mb-0">
                     <h3 class="accordion-header" id="critFourH">
                       <button class="accordion-button collapsed h-serif" type="button"
                               data-bs-toggle="collapse" data-bs-target="#critFour"
                               aria-expanded="false" aria-controls="critFour">
-                        <span class="me-2 icon-badge" aria-hidden="true" style="width:36px;height:36px;"><i class="fa-solid fa-gavel"></i></span>
+                        <span class="me-2 icon-badge" aria-hidden="true"><i class="fa-solid fa-gavel"></i></span>
                         Kirkedisiplin
                       </button>
                     </h3>
@@ -266,208 +299,268 @@
                     </div>
                   </div>
 
+                </div><!-- /criteriaAccordion -->
+              </div>
+            </div>
+          </div>
+        </div><!-- /criteriaSection -->
+
+        <!-- Meld inn / foreslå endring -->
+        <div class="accordion mt-4" id="submitSection">
+          <div class="accordion-item cardish overflow-hidden">
+            <h2 class="accordion-header" id="submitSectionH">
+              <button class="accordion-button collapsed h-serif" type="button"
+                      data-bs-toggle="collapse" data-bs-target="#submitSectionBody"
+                      aria-expanded="false" aria-controls="submitSectionBody">
+                <span class="me-2 icon-badge" aria-hidden="true"><i class="fa-solid fa-pen-to-square"></i></span>
+                Meld inn menighet eller endring
+                <span class="ms-auto small text-secondary">Skjema for innmelding til kartet</span>
+              </button>
+            </h2>
+            <div id="submitSectionBody" class="accordion-collapse collapse"
+                 aria-labelledby="submitSectionH" data-bs-parent="#submitSection">
+              <div class="accordion-body">
+                <p class="mb-3 text-secondary p-comfy">
+                  Har du en menighet som bør legges til, eller en opplysning som må korrigeres? Bruk skjemaet under.
+                </p>
+                <div class="ratio" style="--bs-aspect-ratio: 140%;">
+                  <iframe
+                    title="Skjema: meld inn menighet eller endring"
+                    src="https://docs.google.com/forms/d/e/1FAIpQLSelRxSIeMS6iY4kXhmf5w2dAfrYh3VHGtIoLuKC8VCuqi_XOw/viewform?usp=publish-editor"
+                    loading="lazy"
+                    style="border:0;"
+                    referrerpolicy="no-referrer-when-downgrade"></iframe>
                 </div>
               </div>
             </div>
           </div>
-        </div>
+        </div><!-- /submitSection -->
 
-      </div>
-    </div>
+      </div><!-- /max-width -->
+    </div><!-- /container -->
   </header>
 
   <main class="py-4"></main>
 
   <script>
-  (function () {
-    "use strict";
+    (function () {
+      "use strict";
 
-    const CSV_URL = 'https://docs.google.com/spreadsheets/d/1iQMv5M8hrapIbvolhIKRHOcX3yx7CPX8zQogXzwhtec/export?format=csv';
+      const CSV_URL = "https://docs.google.com/spreadsheets/d/1iQMv5M8hrapIbvolhIKRHOcX3yx7CPX8zQogXzwhtec/export?format=csv";
 
-    const SOUTHERN_NORWAY_BOUNDS = L.latLngBounds([57.8, 3.5], [62.6, 13.6]);
-    const SOUTHERN_LOCK_BOUNDS   = L.latLngBounds([57.5, 2.0], [62.9, 14.5]);
+      const SOUTHERN_NORWAY_BOUNDS = L.latLngBounds([57.8, 3.5], [62.6, 13.6]);
+      const SOUTHERN_LOCK_BOUNDS   = L.latLngBounds([57.5, 2.0], [62.9, 14.5]);
 
-    let CHURCHES = [];
-    const markersLayer = L.layerGroup();
+      let CHURCHES = [];
+      const markersLayer = L.layerGroup();
 
-    const $ = (id) => document.getElementById(id);
+      const $ = (id) => document.getElementById(id);
 
-    function escapeHtml(s) {
-      return String(s || '')
-        .replaceAll('&', '&amp;')
-        .replaceAll('<', '&lt;')
-        .replaceAll('>', '&gt;')
-        .replaceAll('"', '&quot;');
-    }
-
-    function normalizeWebsite(url) {
-      const raw = String(url || '').trim();
-      if (!raw) return '';
-      const prefixed = /^https?:\/\//i.test(raw) ? raw : 'https://' + raw;
-      try {
-        const u = new URL(prefixed);
-        if (u.protocol === 'http:' || u.protocol === 'https:') return u.toString();
-      } catch (_) {}
-      return '';
-    }
-
-    function popupHTML(c) {
-      const name = `<h3 class="h6 mb-1 h-serif" style="font-weight: 600;">${escapeHtml(c.name)}</h3>`;
-      const addr = c.address ? `<div class="small text-secondary">${escapeHtml(c.address)}</div>` : '';
-      const maps = (Number.isFinite(c.lat) && Number.isFinite(c.lng))
-        ? `<a class="link-primary" href="https://www.google.com/maps/search/?api=1&query=${c.lat},${c.lng}" target="_blank" rel="noopener noreferrer">Åpne i kart</a>`
-        : '';
-      const siteUrl = normalizeWebsite(c.website);
-      const site = siteUrl ? `<a class="link-primary ms-2" href="${siteUrl}" target="_blank" rel="noopener noreferrer">Nettside</a>` : '';
-      return `<div class="vstack gap-1">${name}${addr}<div class="small">${maps}${site}</div></div>`;
-    }
-
-    function setNotice(message, kind) {
-      const el = $("notice");
-      if (!el) return;
-      el.innerHTML = '';
-      if (!message) {
-        el.className = 'mt-3 d-none';
-        return;
+      function escapeHtml(s) {
+        return String(s ?? "")
+          .replaceAll("&", "&amp;")
+          .replaceAll("<", "&lt;")
+          .replaceAll(">", "&gt;")
+          .replaceAll('"', "&quot;");
       }
 
-      const wrap = document.createElement('div');
-      const level = kind === 'error' ? 'danger' : 'secondary';
-      wrap.className = `alert alert-${level} d-flex align-items-center gap-2 mb-0`;
-
-      const icon = document.createElement('i');
-      icon.className = kind === 'error' ? 'fa-solid fa-triangle-exclamation' : 'fa-solid fa-circle-info';
-      icon.setAttribute('aria-hidden', 'true');
-
-      const content = document.createElement('div');
-      content.append(message);
-
-      wrap.append(icon, content);
-      el.append(wrap);
-      el.className = 'mt-3';
-    }
-
-    const map = L.map('map', {
-      maxBounds: SOUTHERN_LOCK_BOUNDS.pad(0.02),
-      maxBoundsViscosity: 1.0,
-      minZoom: 4,
-      worldCopyJump: false,
-      preferCanvas: true,
-      zoomControl: true
-    });
-
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      maxZoom: 19,
-      detectRetina: true,
-      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> bidragsytere'
-    }).addTo(map);
-
-    L.control.scale({ metric: true, imperial: false }).addTo(map);
-    markersLayer.addTo(map);
-
-    map.fitBounds(SOUTHERN_NORWAY_BOUNDS);
-
-    function renderMarkers() {
-      markersLayer.clearLayers();
-      for (const c of CHURCHES) {
-        if (!Number.isFinite(c.lat) || !Number.isFinite(c.lng)) continue;
-        const marker = L.marker([c.lat, c.lng]).bindPopup(popupHTML(c), { autoPan: true, keepInView: true });
-        markersLayer.addLayer(marker);
+      function normalizeWebsite(url) {
+        const raw = String(url ?? "").trim();
+        if (!raw) return "";
+        const prefixed = /^https?:\/\//i.test(raw) ? raw : "https://" + raw;
+        try {
+          const u = new URL(prefixed);
+          return (u.protocol === "http:" || u.protocol === "https:") ? u.toString() : "";
+        } catch {
+          return "";
+        }
       }
 
-      const loadingEl = $("loading");
-      const mapEl = $("map");
-      if (loadingEl) { loadingEl.classList.add('d-none'); loadingEl.classList.remove('d-flex'); }
-      if (mapEl) mapEl.classList.remove('loading-blur');
+      function popupHTML(c) {
+        const name = `<h3 class="h6 mb-1 h-serif" style="font-weight: 600;">${escapeHtml(c.name)}</h3>`;
+        const addr = c.address ? `<div class="small text-secondary">${escapeHtml(c.address)}</div>` : "";
 
-      const count = CHURCHES.length;
-      const msg = document.createElement('span');
-      msg.textContent = count ? `Lastet ${count} menighet${count === 1 ? '' : 'er'}.` : 'Ingen menigheter registrert enda.';
-      setNotice(msg, count ? 'info' : 'error');
-    }
+        const maps = (Number.isFinite(c.lat) && Number.isFinite(c.lng))
+          ? `<a class="link-primary" href="https://www.google.com/maps/search/?api=1&query=${c.lat},${c.lng}" target="_blank" rel="noopener noreferrer">Åpne i kart</a>`
+          : "";
 
-    async function fetchCsvText(url, { timeoutMs = 12000 } = {}) {
-      const ctrl = new AbortController();
-      const t = setTimeout(() => ctrl.abort(), timeoutMs);
-      try {
-        const res = await fetch(url, { signal: ctrl.signal, cache: 'no-store' });
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        return await res.text();
-      } finally {
-        clearTimeout(t);
+        const siteUrl = normalizeWebsite(c.website);
+        const site = siteUrl
+          ? `<a class="link-primary ms-2" href="${siteUrl}" target="_blank" rel="noopener noreferrer">Nettside</a>`
+          : "";
+
+        return `<div class="vstack gap-1">${name}${addr}<div class="small">${maps}${site}</div></div>`;
       }
-    }
 
-    function parseRows(csvText) {
-      const { data } = Papa.parse(csvText, { header: true, skipEmptyLines: true });
-      const items = data.map((r) => ({
-        name: (r.name || r.Navn || '').toString().trim(),
-        lat: Number(r.lat || r.latitude || r.Lat || r.Breddegrad),
-        lng: Number(r.lng || r.longitude || r.Lng || r.Lengdegrad),
-        address: (r.address || r.Adresse || '').toString().trim(),
-        website: (r.website || r.Nettside || '').toString().trim()
-      })).filter(c => c.name && Number.isFinite(c.lat) && Number.isFinite(c.lng));
+      function setNotice(messageNodeOrString, kind) {
+        const el = $("notice");
+        if (!el) return;
 
-      const seen = new Set();
-      const deduped = [];
-      for (const it of items) {
-        const key = `${it.name}@@${it.lat.toFixed(6)},${it.lng.toFixed(6)}`;
-        if (seen.has(key)) continue;
-        seen.add(key);
-        deduped.push(it);
+        el.innerHTML = "";
+
+        if (!messageNodeOrString) {
+          el.className = "mt-3 d-none";
+          return;
+        }
+
+        const wrap = document.createElement("div");
+        const level = kind === "error" ? "danger" : "secondary";
+        wrap.className = `alert alert-${level} d-flex align-items-center gap-2 mb-0`;
+
+        const icon = document.createElement("i");
+        icon.className = kind === "error"
+          ? "fa-solid fa-triangle-exclamation"
+          : "fa-solid fa-circle-info";
+        icon.setAttribute("aria-hidden", "true");
+
+        const content = document.createElement("div");
+        if (typeof messageNodeOrString === "string") {
+          content.textContent = messageNodeOrString;
+        } else {
+          content.append(messageNodeOrString);
+        }
+
+        wrap.append(icon, content);
+        el.append(wrap);
+        el.className = "mt-3";
       }
-      return deduped;
-    }
 
-    async function loadChurches() {
-      const loadingEl = $("loading");
-      const mapEl = $("map");
-      if (loadingEl) { loadingEl.classList.remove('d-none'); loadingEl.classList.add('d-flex'); }
-      if (mapEl) mapEl.classList.add('loading-blur');
+      const map = L.map("map", {
+        maxBounds: SOUTHERN_LOCK_BOUNDS.pad(0.02),
+        maxBoundsViscosity: 1.0,
+        minZoom: 4,
+        worldCopyJump: false,
+        preferCanvas: true,
+        zoomControl: true
+      });
 
-      setNotice('', '');
+      L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+        maxZoom: 19,
+        detectRetina: true,
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> bidragsytere'
+      }).addTo(map);
 
-      try {
-        const csvText = await fetchCsvText(CSV_URL);
-        CHURCHES = parseRows(csvText);
-        renderMarkers();
-      } catch (err) {
-        console.error('CSV load/parse error:', err);
+      L.control.scale({ metric: true, imperial: false }).addTo(map);
+      markersLayer.addTo(map);
 
-        if (loadingEl) { loadingEl.classList.add('d-none'); loadingEl.classList.remove('d-flex'); }
-        if (mapEl) mapEl.classList.remove('loading-blur');
+      map.fitBounds(SOUTHERN_NORWAY_BOUNDS);
 
-        const frag = document.createDocumentFragment();
-        const span = document.createElement('span');
-        span.textContent = 'Kunne ikke hente menighetsdata. ';
+      function setLoading(isLoading) {
+        const loadingEl = $("loading");
+        const mapEl = $("map");
+        if (!loadingEl || !mapEl) return;
 
-        const btn = document.createElement('button');
-        btn.type = 'button';
-        btn.className = 'btn btn-outline-secondary btn-sm ms-2';
-        btn.innerHTML = '<i class="fa-solid fa-rotate-right" aria-hidden="true"></i><span class="ms-1">Prøv igjen</span>';
-        btn.addEventListener('click', () => loadChurches(), { once: true });
-
-        frag.append(span, btn);
-        setNotice(frag, 'error');
+        loadingEl.classList.toggle("d-none", !isLoading);
+        loadingEl.classList.toggle("d-flex", isLoading);
+        mapEl.classList.toggle("loading-blur", isLoading);
       }
-    }
 
-    (function selfTests() {
-      try {
-        console.assert(typeof L === 'object', 'Leaflet should be loaded');
-        console.assert(typeof Papa === 'object', 'PapaParse should be loaded');
-        console.assert(Array.isArray(CHURCHES), 'CHURCHES should be an array');
-        const _testPopup = popupHTML({ name: 'Test', lat: 60, lng: 10, address: 'Adresse', website: 'https://eksempel.no' });
-        console.assert(typeof _testPopup === 'string' && _testPopup.includes('Test'), 'popupHTML should return string with name');
-        CHURCHES = [];
-        renderMarkers();
-      } catch (e) {
-        console.warn('Self-tests failed (non-fatal):', e);
+      function renderMarkers() {
+        markersLayer.clearLayers();
+
+        for (const c of CHURCHES) {
+          if (!Number.isFinite(c.lat) || !Number.isFinite(c.lng)) continue;
+          const marker = L.marker([c.lat, c.lng]).bindPopup(popupHTML(c), {
+            autoPan: true,
+            keepInView: true
+          });
+          markersLayer.addLayer(marker);
+        }
+
+        setLoading(false);
+
+        if (CHURCHES.length === 0) {
+          setNotice("Ingen menigheter registrert enda.", "error");
+        } else {
+          setNotice("", "");
+        }
+      }
+
+      async function fetchCsvText(url, { timeoutMs = 12000 } = {}) {
+        const ctrl = new AbortController();
+        const t = setTimeout(() => ctrl.abort(), timeoutMs);
+        try {
+          const res = await fetch(url, { signal: ctrl.signal, cache: "no-store" });
+          if (!res.ok) throw new Error(`HTTP ${res.status}`);
+          return await res.text();
+        } finally {
+          clearTimeout(t);
+        }
+      }
+
+      function numOrNaN(v) {
+        // Accept "59,9123" as well as "59.9123"
+        const s = String(v ?? "").trim().replace(",", ".");
+        const n = Number(s);
+        return Number.isFinite(n) ? n : NaN;
+      }
+
+      function parseRows(csvText) {
+        const parsed = Papa.parse(csvText, { header: true, skipEmptyLines: true });
+        const rows = Array.isArray(parsed.data) ? parsed.data : [];
+
+        const items = rows.map((r) => ({
+          name: String(r.name ?? r.Navn ?? "").trim(),
+          lat: numOrNaN(r.lat ?? r.latitude ?? r.Lat ?? r.Breddegrad),
+          lng: numOrNaN(r.lng ?? r.longitude ?? r.Lng ?? r.Lengdegrad),
+          address: String(r.address ?? r.Adresse ?? "").trim(),
+          website: String(r.website ?? r.Nettside ?? "").trim()
+        })).filter(c => c.name && Number.isFinite(c.lat) && Number.isFinite(c.lng));
+
+        const seen = new Set();
+        const deduped = [];
+        for (const it of items) {
+          const key = `${it.name}@@${it.lat.toFixed(6)},${it.lng.toFixed(6)}`;
+          if (seen.has(key)) continue;
+          seen.add(key);
+          deduped.push(it);
+        }
+        return deduped;
+      }
+
+      async function loadChurches() {
+        setLoading(true);
+        setNotice("", "");
+
+        try {
+          const csvText = await fetchCsvText(CSV_URL);
+          CHURCHES = parseRows(csvText);
+          renderMarkers();
+        } catch (err) {
+          console.error("CSV load/parse error:", err);
+          setLoading(false);
+
+          const frag = document.createDocumentFragment();
+
+          const span = document.createElement("span");
+          span.textContent = "Kunne ikke hente menighetsdata.";
+
+          const btn = document.createElement("button");
+          btn.type = "button";
+          btn.className = "btn btn-outline-secondary btn-sm ms-2";
+          btn.innerHTML = '<i class="fa-solid fa-rotate-right" aria-hidden="true"></i><span class="ms-1">Prøv igjen</span>';
+          btn.addEventListener("click", () => loadChurches());
+
+          frag.append(span, btn);
+          setNotice(frag, "error");
+        }
+      }
+
+      // Start only when deps are ready (because we deferred scripts)
+      function boot() {
+        if (!window.L || !window.Papa) {
+          setNotice("Kartbiblioteket ble ikke lastet riktig. Oppdater siden.", "error");
+          return;
+        }
+        loadChurches();
+      }
+
+      if (document.readyState === "loading") {
+        document.addEventListener("DOMContentLoaded", boot, { once: true });
+      } else {
+        boot();
       }
     })();
-
-    loadChurches();
-  })();
   </script>
 </body>
 </html>
