@@ -342,91 +342,190 @@
 
   <main class="py-4"></main>
 
-  <script>
-    (function () {
-      "use strict";
+<script>
+  (function () {
+    "use strict";
 
-      const CSV_URL = "https://docs.google.com/spreadsheets/d/1iQMv5M8hrapIbvolhIKRHOcX3yx7CPX8zQogXzwhtec/export?format=csv";
+    const CSV_URL = "https://docs.google.com/spreadsheets/d/1iQMv5M8hrapIbvolhIKRRHOcX3yx7CPX8zQogXzwhtec/export?format=csv";
 
-      const SOUTHERN_NORWAY_BOUNDS = L.latLngBounds([57.8, 3.5], [62.6, 13.6]);
-      const SOUTHERN_LOCK_BOUNDS   = L.latLngBounds([57.5, 2.0], [62.9, 14.5]);
+    const SOUTHERN_NORWAY_BOUNDS = [ [57.8, 3.5], [62.6, 13.6] ];
+    const SOUTHERN_LOCK_BOUNDS   = [ [57.5, 2.0], [62.9, 14.5] ];
 
-      let CHURCHES = [];
-      const markersLayer = L.layerGroup();
+    let CHURCHES = [];
+    let map = null;
+    let markersLayer = null;
 
-      const $ = (id) => document.getElementById(id);
+    const $ = (id) => document.getElementById(id);
 
-      function escapeHtml(s) {
-        return String(s ?? "")
-          .replaceAll("&", "&amp;")
-          .replaceAll("<", "&lt;")
-          .replaceAll(">", "&gt;")
-          .replaceAll('"', "&quot;");
+    function normalizeWebsite(url) {
+      const raw = String(url ?? "").trim();
+      if (!raw) return "";
+      const prefixed = /^https?:\/\//i.test(raw) ? raw : "https://" + raw;
+      try {
+        const u = new URL(prefixed);
+        return (u.protocol === "http:" || u.protocol === "https:") ? u.toString() : "";
+      } catch {
+        return "";
+      }
+    }
+
+    function escapeHtml(s) {
+      return String(s ?? "")
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;");
+    }
+
+    function popupHTML(c) {
+      const name = `<h3 class="h6 mb-1 h-serif" style="font-weight: 600;">${escapeHtml(c.name)}</h3>`;
+      const addr = c.address ? `<div class="small text-secondary">${escapeHtml(c.address)}</div>` : "";
+
+      const maps = (Number.isFinite(c.lat) && Number.isFinite(c.lng))
+        ? `<a class="link-primary" href="https://www.google.com/maps/search/?api=1&query=${c.lat},${c.lng}" target="_blank" rel="noopener noreferrer">Åpne i kart</a>`
+        : "";
+
+      const siteUrl = normalizeWebsite(c.website);
+      const site = siteUrl
+        ? `<a class="link-primary ms-2" href="${siteUrl}" target="_blank" rel="noopener noreferrer">Nettside</a>`
+        : "";
+
+      return `<div class="vstack gap-1">${name}${addr}<div class="small">${maps}${site}</div></div>`;
+    }
+
+    function setNotice(messageNodeOrString, kind) {
+      const el = $("notice");
+      if (!el) return;
+
+      el.innerHTML = "";
+
+      if (!messageNodeOrString) {
+        el.className = "mt-3 d-none";
+        return;
       }
 
-      function normalizeWebsite(url) {
-        const raw = String(url ?? "").trim();
-        if (!raw) return "";
-        const prefixed = /^https?:\/\//i.test(raw) ? raw : "https://" + raw;
-        try {
-          const u = new URL(prefixed);
-          return (u.protocol === "http:" || u.protocol === "https:") ? u.toString() : "";
-        } catch {
-          return "";
-        }
+      const wrap = document.createElement("div");
+      const level = kind === "error" ? "danger" : "secondary";
+      wrap.className = `alert alert-${level} d-flex align-items-center gap-2 mb-0`;
+
+      const icon = document.createElement("i");
+      icon.className = kind === "error"
+        ? "fa-solid fa-triangle-exclamation"
+        : "fa-solid fa-circle-info";
+      icon.setAttribute("aria-hidden", "true");
+
+      const content = document.createElement("div");
+      if (typeof messageNodeOrString === "string") content.textContent = messageNodeOrString;
+      else content.append(messageNodeOrString);
+
+      wrap.append(icon, content);
+      el.append(wrap);
+      el.className = "mt-3";
+    }
+
+    function setLoading(isLoading) {
+      const loadingEl = $("loading");
+      const mapEl = $("map");
+      if (!loadingEl || !mapEl) return;
+
+      loadingEl.classList.toggle("d-none", !isLoading);
+      loadingEl.classList.toggle("d-flex", isLoading);
+      mapEl.classList.toggle("loading-blur", isLoading);
+    }
+
+    async function fetchCsvText(url, { timeoutMs = 12000 } = {}) {
+      const ctrl = new AbortController();
+      const t = setTimeout(() => ctrl.abort(), timeoutMs);
+      try {
+        const res = await fetch(url, { signal: ctrl.signal, cache: "no-store" });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        return await res.text();
+      } finally {
+        clearTimeout(t);
+      }
+    }
+
+    function numOrNaN(v) {
+      const s = String(v ?? "").trim().replace(",", ".");
+      const n = Number(s);
+      return Number.isFinite(n) ? n : NaN;
+    }
+
+    function parseRows(csvText) {
+      const parsed = Papa.parse(csvText, { header: true, skipEmptyLines: true });
+      const rows = Array.isArray(parsed.data) ? parsed.data : [];
+
+      const items = rows.map((r) => ({
+        name: String(r.name ?? r.Navn ?? "").trim(),
+        lat: numOrNaN(r.lat ?? r.latitude ?? r.Lat ?? r.Breddegrad),
+        lng: numOrNaN(r.lng ?? r.longitude ?? r.Lng ?? r.Lengdegrad),
+        address: String(r.address ?? r.Adresse ?? "").trim(),
+        website: String(r.website ?? r.Nettside ?? "").trim()
+      })).filter(c => c.name && Number.isFinite(c.lat) && Number.isFinite(c.lng));
+
+      const seen = new Set();
+      const deduped = [];
+      for (const it of items) {
+        const key = `${it.name}@@${it.lat.toFixed(6)},${it.lng.toFixed(6)}`;
+        if (seen.has(key)) continue;
+        seen.add(key);
+        deduped.push(it);
+      }
+      return deduped;
+    }
+
+    function renderMarkers() {
+      markersLayer.clearLayers();
+
+      for (const c of CHURCHES) {
+        if (!Number.isFinite(c.lat) || !Number.isFinite(c.lng)) continue;
+        L.marker([c.lat, c.lng])
+          .bindPopup(popupHTML(c), { autoPan: true, keepInView: true })
+          .addTo(markersLayer);
       }
 
-      function popupHTML(c) {
-        const name = `<h3 class="h6 mb-1 h-serif" style="font-weight: 600;">${escapeHtml(c.name)}</h3>`;
-        const addr = c.address ? `<div class="small text-secondary">${escapeHtml(c.address)}</div>` : "";
+      setLoading(false);
 
-        const maps = (Number.isFinite(c.lat) && Number.isFinite(c.lng))
-          ? `<a class="link-primary" href="https://www.google.com/maps/search/?api=1&query=${c.lat},${c.lng}" target="_blank" rel="noopener noreferrer">Åpne i kart</a>`
-          : "";
-
-        const siteUrl = normalizeWebsite(c.website);
-        const site = siteUrl
-          ? `<a class="link-primary ms-2" href="${siteUrl}" target="_blank" rel="noopener noreferrer">Nettside</a>`
-          : "";
-
-        return `<div class="vstack gap-1">${name}${addr}<div class="small">${maps}${site}</div></div>`;
+      if (CHURCHES.length === 0) {
+        setNotice("Ingen menigheter registrert enda.", "error");
+      } else {
+        setNotice("", "");
       }
+    }
 
-      function setNotice(messageNodeOrString, kind) {
-        const el = $("notice");
-        if (!el) return;
+    async function loadChurches() {
+      setLoading(true);
+      setNotice("", "");
 
-        el.innerHTML = "";
+      try {
+        const csvText = await fetchCsvText(CSV_URL);
+        CHURCHES = parseRows(csvText);
+        renderMarkers();
+      } catch (err) {
+        console.error("CSV load/parse error:", err);
+        setLoading(false);
 
-        if (!messageNodeOrString) {
-          el.className = "mt-3 d-none";
-          return;
-        }
+        const frag = document.createDocumentFragment();
+        const span = document.createElement("span");
+        span.textContent = "Kunne ikke hente menighetsdata.";
 
-        const wrap = document.createElement("div");
-        const level = kind === "error" ? "danger" : "secondary";
-        wrap.className = `alert alert-${level} d-flex align-items-center gap-2 mb-0`;
+        const btn = document.createElement("button");
+        btn.type = "button";
+        btn.className = "btn btn-outline-secondary btn-sm ms-2";
+        btn.innerHTML = '<i class="fa-solid fa-rotate-right" aria-hidden="true"></i><span class="ms-1">Prøv igjen</span>';
+        btn.addEventListener("click", () => loadChurches());
 
-        const icon = document.createElement("i");
-        icon.className = kind === "error"
-          ? "fa-solid fa-triangle-exclamation"
-          : "fa-solid fa-circle-info";
-        icon.setAttribute("aria-hidden", "true");
-
-        const content = document.createElement("div");
-        if (typeof messageNodeOrString === "string") {
-          content.textContent = messageNodeOrString;
-        } else {
-          content.append(messageNodeOrString);
-        }
-
-        wrap.append(icon, content);
-        el.append(wrap);
-        el.className = "mt-3";
+        frag.append(span, btn);
+        setNotice(frag, "error");
       }
+    }
 
-      const map = L.map("map", {
-        maxBounds: SOUTHERN_LOCK_BOUNDS.pad(0.02),
+    function initMap() {
+      const southBounds = L.latLngBounds(SOUTHERN_NORWAY_BOUNDS);
+      const lockBounds  = L.latLngBounds(SOUTHERN_LOCK_BOUNDS);
+
+      map = L.map("map", {
+        maxBounds: lockBounds.pad(0.02),
         maxBoundsViscosity: 1.0,
         minZoom: 4,
         worldCopyJump: false,
@@ -441,126 +540,23 @@
       }).addTo(map);
 
       L.control.scale({ metric: true, imperial: false }).addTo(map);
-      markersLayer.addTo(map);
 
-      map.fitBounds(SOUTHERN_NORWAY_BOUNDS);
+      markersLayer = L.layerGroup().addTo(map);
+      map.fitBounds(southBounds);
+    }
 
-      function setLoading(isLoading) {
-        const loadingEl = $("loading");
-        const mapEl = $("map");
-        if (!loadingEl || !mapEl) return;
-
-        loadingEl.classList.toggle("d-none", !isLoading);
-        loadingEl.classList.toggle("d-flex", isLoading);
-        mapEl.classList.toggle("loading-blur", isLoading);
+    function boot() {
+      if (!window.L || !window.Papa) {
+        setNotice("Kartbiblioteket ble ikke lastet riktig. Oppdater siden.", "error");
+        return;
       }
+      initMap();
+      loadChurches();
+    }
 
-      function renderMarkers() {
-        markersLayer.clearLayers();
+    document.addEventListener("DOMContentLoaded", boot, { once: true });
+  })();
+</script>
 
-        for (const c of CHURCHES) {
-          if (!Number.isFinite(c.lat) || !Number.isFinite(c.lng)) continue;
-          const marker = L.marker([c.lat, c.lng]).bindPopup(popupHTML(c), {
-            autoPan: true,
-            keepInView: true
-          });
-          markersLayer.addLayer(marker);
-        }
-
-        setLoading(false);
-
-        if (CHURCHES.length === 0) {
-          setNotice("Ingen menigheter registrert enda.", "error");
-        } else {
-          setNotice("", "");
-        }
-      }
-
-      async function fetchCsvText(url, { timeoutMs = 12000 } = {}) {
-        const ctrl = new AbortController();
-        const t = setTimeout(() => ctrl.abort(), timeoutMs);
-        try {
-          const res = await fetch(url, { signal: ctrl.signal, cache: "no-store" });
-          if (!res.ok) throw new Error(`HTTP ${res.status}`);
-          return await res.text();
-        } finally {
-          clearTimeout(t);
-        }
-      }
-
-      function numOrNaN(v) {
-        // Accept "59,9123" as well as "59.9123"
-        const s = String(v ?? "").trim().replace(",", ".");
-        const n = Number(s);
-        return Number.isFinite(n) ? n : NaN;
-      }
-
-      function parseRows(csvText) {
-        const parsed = Papa.parse(csvText, { header: true, skipEmptyLines: true });
-        const rows = Array.isArray(parsed.data) ? parsed.data : [];
-
-        const items = rows.map((r) => ({
-          name: String(r.name ?? r.Navn ?? "").trim(),
-          lat: numOrNaN(r.lat ?? r.latitude ?? r.Lat ?? r.Breddegrad),
-          lng: numOrNaN(r.lng ?? r.longitude ?? r.Lng ?? r.Lengdegrad),
-          address: String(r.address ?? r.Adresse ?? "").trim(),
-          website: String(r.website ?? r.Nettside ?? "").trim()
-        })).filter(c => c.name && Number.isFinite(c.lat) && Number.isFinite(c.lng));
-
-        const seen = new Set();
-        const deduped = [];
-        for (const it of items) {
-          const key = `${it.name}@@${it.lat.toFixed(6)},${it.lng.toFixed(6)}`;
-          if (seen.has(key)) continue;
-          seen.add(key);
-          deduped.push(it);
-        }
-        return deduped;
-      }
-
-      async function loadChurches() {
-        setLoading(true);
-        setNotice("", "");
-
-        try {
-          const csvText = await fetchCsvText(CSV_URL);
-          CHURCHES = parseRows(csvText);
-          renderMarkers();
-        } catch (err) {
-          console.error("CSV load/parse error:", err);
-          setLoading(false);
-
-          const frag = document.createDocumentFragment();
-
-          const span = document.createElement("span");
-          span.textContent = "Kunne ikke hente menighetsdata.";
-
-          const btn = document.createElement("button");
-          btn.type = "button";
-          btn.className = "btn btn-outline-secondary btn-sm ms-2";
-          btn.innerHTML = '<i class="fa-solid fa-rotate-right" aria-hidden="true"></i><span class="ms-1">Prøv igjen</span>';
-          btn.addEventListener("click", () => loadChurches());
-
-          frag.append(span, btn);
-          setNotice(frag, "error");
-        }
-      }
-
-      // Start only when deps are ready (because we deferred scripts)
-      function boot() {
-        if (!window.L || !window.Papa) {
-          setNotice("Kartbiblioteket ble ikke lastet riktig. Oppdater siden.", "error");
-          return;
-        }
-        loadChurches();
-      }
-
-      if (document.readyState === "loading") {
-        document.addEventListener("DOMContentLoaded", boot, { once: true });
-      } else {
-        boot();
-      }
-    })();
-  </script>
 </body>
 </html>
